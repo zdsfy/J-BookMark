@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的书签</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='%23A16207' d='M6 2h12a1 1 0 0 1 1 1v19l-7-4.5L5 22V3a1 1 0 0 1 1-1z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app">
+    <!-- 顶栏 -->
+    <header class="topbar">
+      <div class="brand">
+        <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4.5L5 22V3a1 1 0 0 1 1-1z"/></svg>
+        <span class="brand-name">我的书签</span>
+      </div>
+      <div class="search">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="search" type="search" placeholder="搜索标题、网址、标签…" autocomplete="off" aria-label="搜索书签">
+      </div>
+      <div class="actions">
+        <button id="btn-stats" class="btn btn-ghost" aria-label="查看统计">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+          <span>统计</span>
+        </button>
+        <button id="btn-check" class="btn btn-ghost" aria-label="检查所有链接是否有效">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></svg>
+          <span>检查链接</span>
+        </button>
+        <button id="btn-add" class="btn btn-primary" aria-label="添加书签">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>添加书签</span>
+        </button>
+        <button id="btn-theme" class="icon-btn" aria-label="切换浅色/深色主题">
+          <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- 分类侧栏 -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <span>分类</span>
+          <button id="btn-add-cat" class="icon-btn small" aria-label="新建分类">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <nav id="cat-list" class="cat-list" aria-label="书签分类"></nav>
+        <div id="cat-input-wrap" class="cat-input-wrap hidden">
+          <input id="cat-input" type="text" placeholder="分类名称" maxlength="30" aria-label="新分类名称">
+          <button id="cat-input-ok" class="icon-btn small" aria-label="确认创建"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg></button>
+        </div>
+      </aside>
+
+      <!-- 主区域 -->
+      <main class="main">
+        <div class="toolbar">
+          <div id="result-count" class="result-count"></div>
+          <div id="health-chips" class="chips" role="group" aria-label="按健康状态筛选"></div>
+          <label class="sort">
+            排序
+            <select id="sort" aria-label="排序方式">
+              <option value="clicks">访问最多</option>
+              <option value="recent">最近访问</option>
+              <option value="created">最新添加</option>
+              <option value="alpha">标题</option>
+            </select>
+          </label>
+        </div>
+        <div id="tag-filter" class="tag-filter hidden">
+          <span>标签筛选：<b id="tag-filter-name"></b></span>
+          <button id="tag-filter-clear" class="btn btn-ghost small" aria-label="清除标签筛选">清除</button>
+        </div>
+        <div id="check-progress" class="check-progress hidden" role="status">
+          <div class="check-bar"><div id="check-bar-fill" class="check-bar-fill"></div></div>
+          <span id="check-bar-text"></span>
+        </div>
+        <div id="grid" class="grid" aria-live="polite"></div>
+        <div id="empty" class="empty hidden"></div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 书签编辑弹窗 -->
+  <div id="bookmark-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-box" role="document">
+      <header class="modal-header">
+        <h2 id="modal-title">添加书签</h2>
+        <button class="icon-btn modal-close" aria-label="关闭弹窗">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+      <form id="bookmark-form" novalidate>
+        <div class="field">
+          <label for="f-title">标题 <em class="req">*</em></label>
+          <input id="f-title" type="text" required maxlength="200" placeholder="例如：Node.js 官网">
+        </div>
+        <div class="field">
+          <label for="f-url">网址 <em class="req">*</em></label>
+          <input id="f-url" type="url" required placeholder="https://…">
+          <p class="field-error hidden" id="f-url-error"></p>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="f-category">分类</label>
+            <select id="f-category"></select>
+          </div>
+          <div class="field">
+            <label for="f-tags">标签</label>
+            <input id="f-tags" type="text" placeholder="多个标签用逗号分隔">
+          </div>
+        </div>
+        <div class="field">
+          <label for="f-notes">备注</label>
+          <textarea id="f-notes" rows="3" maxlength="500" placeholder="可选：用途、账号提示等"></textarea>
+        </div>
+        <footer class="modal-footer">
+          <button type="button" class="btn btn-ghost modal-cancel">取消</button>
+          <button type="submit" class="btn btn-primary" id="modal-save">保存</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- 确认弹窗 -->
+  <div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-box modal-box-sm">
+      <h2 id="confirm-title">确认删除</h2>
+      <p id="confirm-text" class="confirm-text"></p>
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-ghost modal-cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok">删除</button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- 统计弹窗 -->
+  <div id="stats-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+    <div class="modal-box modal-box-lg">
+      <header class="modal-header">
+        <h2 id="stats-title">统计</h2>
+        <button class="icon-btn modal-close" aria-label="关闭统计弹窗">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+      <div id="stats-body" class="stats-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>

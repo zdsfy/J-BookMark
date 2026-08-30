@@ -1,0 +1,15 @@
+{
+  "name": "bookmark-nas",
+  "version": "0.1.0",
+  "description": "个人书签管理工具（NAS 网页版），内置 REST API 供后续浏览器插件复用",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "license": "MIT"
+}
