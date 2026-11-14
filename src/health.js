@@ -17,12 +17,42 @@ const job = {
   ok: 0,
   dead: 0,
   error: 0,
+  unknown: 0,
   startedAt: null,
   finishedAt: null,
 };
 
 export function getHealthJob() {
   return job;
+}
+
+/**
+ * 判断目标是否为内网/保留地址。是则跳过探测（避免 SSRF：恶意书签
+ * 让 NAS 去扫内网端口，再通过 health_code 回显结果）。
+ * 只做 IP 字面量与 localhost 判断；域名解析到内网的情况不在本层处理。
+ */
+function isPrivateTarget(u) {
+  try {
+    const hostname = new URL(u).hostname;
+    if (!hostname) return true;
+    if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '0.0.0.0') {
+      return true;
+    }
+    // IPv6 字面量一律视为内网/保留网段，跳过探测
+    if (hostname.startsWith('[') || hostname.includes(':')) return true;
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) return false; // 域名，允许探测
+    const [a, b] = hostname.split('.').map(Number);
+    if (a === 10) return true;            // 10.0.0.0/8
+    if (a === 127) return true;           // 127.0.0.0/8 loopback
+    if (a === 0) return true;             // 0.0.0.0/8
+    if (a === 169 && b === 254) return true; // 169.254.0.0/16 link-local
+    if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+    if (a === 192 && b === 168) return true; // 192.168.0.0/16
+    if (a >= 224) return true;            // 组播/保留
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 async function probe(url) {
@@ -71,6 +101,7 @@ export async function runHealthCheck(rows, { track = true } = {}) {
     job.ok = 0;
     job.dead = 0;
     job.error = 0;
+    job.unknown = 0;
     job.startedAt = new Date().toISOString();
     job.finishedAt = null;
   }
@@ -89,6 +120,16 @@ export async function runHealthCheck(rows, { track = true } = {}) {
   const worker = async () => {
     while (index < rows.length) {
       const row = rows[index++];
+      // SSRF 防护：内网/保留地址直接标记 unknown，不做探测
+      if (isPrivateTarget(row.url)) {
+        update.run('unknown', null, row.id);
+        if (track) {
+          job.done++;
+          job.unknown++;
+        }
+        results.push({ id: row.id, url: row.url, health_status: 'unknown', health_code: null });
+        continue;
+      }
       const p = await probe(row.url);
       // 2xx 以及 401/403（服务可达、仅需登录）视为正常；其余 4xx/5xx 为异常
       const reachable = (p.code >= 200 && p.code < 300) || p.code === 401 || p.code === 403;

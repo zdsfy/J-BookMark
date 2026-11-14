@@ -36,6 +36,7 @@ PORT=9000 node server.js
 |------|--------|------|
 | `PORT` | `9989` | 监听端口 |
 | `BM_TOKEN` | 无 | 开启 API Token 鉴权（见下方「安全」） |
+| `BM_CORS_ORIGINS` | 无 | 跨源白名单，逗号分隔的完整 Origin（如 `https://plugin.example.com`），白名单请求免 Token |
 
 ## 在 NAS 上常驻运行
 
@@ -93,20 +94,28 @@ pm2 save && pm2 startup
 
 > 本项目本身无需 `npm install`，pm2 只是作为进程守护工具。
 
-## 安全（API Token）
+## 安全（跨源访问控制）
 
-默认所有接口对局域网开放（CORS 允许所有来源），适合个人 NAS 内网使用。若计划让**浏览器插件**（运行在其他来源）或公网访问写入数据，建议设置 Token：
+API 对局域网开放，但**跨源数据访问默认是关闭的**（只允许同源网页与无 Origin 的内网脚本），避免任意网页把你的书签读走。
 
-```bash
-BM_TOKEN=你的随机密钥 node server.js
-```
+访问规则按优先级：
 
-设置后规则：
-- 网页版（同源访问）**不受影响**，无需 Token；
-- 浏览器插件等**跨源**请求必须携带 `Authorization: Bearer <token>` 或 `X-API-Token: <token>`，否则返回 401；
-- 无 `Origin` 的请求（如 curl、内网脚本）默认放行。
+1. **无 `Origin` 的请求**（curl、内网脚本）→ 放行；
+2. **同源请求**（网页版，`Origin` 的协议 + host + 端口与请求 Host 完全一致）→ 放行，无需 Token；
+3. **`BM_CORS_ORIGINS` 白名单**中的来源 → 放行，无需 Token；
+4. 其余**跨源**请求 → 必须携带 `Authorization: Bearer <token>` 或 `X-API-Token: <token>`，否则返回 401。
+
+浏览器插件等跨源客户端两种接入方式任选其一：
+- 设置 `BM_CORS_ORIGINS` 把插件来源加入白名单（推荐，简单直观）；
+- 或启用 Token：`BM_TOKEN=你的随机密钥 node server.js`，插件请求头带 Token。
+
+> 注意：Token 只约束带 `Origin` 的跨源请求；无 `Origin` 的请求（curl 等）默认放行。若面向公网开放，请务必放在带访问控制的反向代理后面，并为网页版加登录。
 
 生成随机密钥：`openssl rand -hex 32`
+
+### 链接健康检查的安全限制
+
+为防 SSRF（恶意书签让 NAS 去扫内网端口），健康检查会**跳过内网/保留地址**（`127.*`、`10.*`、`172.16-31.*`、`192.168.*`、`169.254.*`、`0.0.0.0`、`localhost`、IPv6 字面量），这些书签状态保持/标记为「未检测」。内网书签本身仍可正常保存和打开，只是不做自动探测。
 
 ## REST API 文档
 

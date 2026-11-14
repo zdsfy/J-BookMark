@@ -18,21 +18,32 @@ function sendError(res, status, message) {
   sendJson(res, status, { error: message });
 }
 
-/** 读取请求体（限制 1MB），非法 JSON 返回 null */
-function readBody(req) {
+/** 请求体超限标记：readBody 已写好 413 响应，调用方直接 return */
+const TOO_LARGE = Symbol('too_large');
+
+/** 读取请求体（限制 1MB）；超限返回 TOO_LARGE（已回 413），非法 JSON 返回 null */
+function readBody(req, res) {
   return new Promise((resolve) => {
     let size = 0;
     const chunks = [];
+    let aborted = false;
     req.on('data', (c) => {
+      if (aborted) return;
       size += c.length;
       if (size > 1024 * 1024) {
+        aborted = true;
+        try {
+          res.writeHead(413, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ error: '请求体过大（上限 1MB）' }));
+        } catch {}
         req.destroy();
-        resolve(null);
+        resolve(TOO_LARGE);
         return;
       }
       chunks.push(c);
     });
     req.on('end', () => {
+      if (aborted) return;
       if (!chunks.length) return resolve({});
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')));
@@ -40,7 +51,9 @@ function readBody(req) {
         resolve(null);
       }
     });
-    req.on('error', () => resolve(null));
+    req.on('error', () => {
+      if (!aborted) resolve(null);
+    });
   });
 }
 
@@ -101,16 +114,20 @@ function listCategories(_req, res) {
 }
 
 async function createCategory(req, res) {
-  const body = await readBody(req);
+  const body = await readBody(req, res);
+  if (body === TOO_LARGE) return;
   if (!body || typeof body.name !== 'string' || !body.name.trim()) {
     return sendError(res, 400, '分类名称不能为空');
+  }
+  if (body.sort_order != null && !Number.isInteger(body.sort_order)) {
+    return sendError(res, 400, 'sort_order 必须是整数');
   }
   const name = body.name.trim();
   const db = getDb();
   try {
     const info = db.prepare(
       'INSERT INTO categories (name, sort_order) VALUES (?, ?)'
-    ).run(name, Number.isInteger(body.sort_order) ? body.sort_order : 0);
+    ).run(name, body.sort_order ?? 0);
     sendJson(res, 201, { id: Number(info.lastInsertRowid), name });
   } catch (e) {
     if (String(e.message).includes('UNIQUE')) {
@@ -122,7 +139,8 @@ async function createCategory(req, res) {
 
 async function updateCategory(req, res, match) {
   const id = parseId(match);
-  const body = await readBody(req);
+  const body = await readBody(req, res);
+  if (body === TOO_LARGE) return;
   if (!body) return sendError(res, 400, '请求体无效');
   const db = getDb();
   const cur = db.prepare('SELECT * FROM categories WHERE id = ?').get(id);
@@ -130,6 +148,9 @@ async function updateCategory(req, res, match) {
 
   const name = body.name != null ? String(body.name).trim() : cur.name;
   if (!name) return sendError(res, 400, '分类名称不能为空');
+  if (body.sort_order != null && !Number.isInteger(body.sort_order)) {
+    return sendError(res, 400, 'sort_order 必须是整数');
+  }
   const sortOrder = body.sort_order != null ? body.sort_order : cur.sort_order;
   try {
     db.prepare('UPDATE categories SET name = ?, sort_order = ? WHERE id = ?').run(name, sortOrder, id);
@@ -205,7 +226,8 @@ function listBookmarks(req, res, _match, url) {
 }
 
 async function createBookmark(req, res) {
-  const body = await readBody(req);
+  const body = await readBody(req, res);
+  if (body === TOO_LARGE) return;
   if (!body) return sendError(res, 400, '请求体无效');
   const title = body.title != null ? String(body.title).trim() : '';
   const url = body.url != null ? String(body.url).trim() : '';
@@ -247,7 +269,8 @@ function getBookmark(_req, res, match) {
 
 async function updateBookmark(req, res, match) {
   const id = parseId(match);
-  const body = await readBody(req);
+  const body = await readBody(req, res);
+  if (body === TOO_LARGE) return;
   if (!body) return sendError(res, 400, '请求体无效');
   const db = getDb();
   const cur = db.prepare('SELECT * FROM bookmarks WHERE id = ?').get(id);
@@ -322,7 +345,8 @@ async function checkOne(_req, res, match) {
   const db = getDb();
   const cur = db.prepare('SELECT id, url FROM bookmarks WHERE id = ?').get(id);
   if (!cur) return sendError(res, 404, '书签不存在');
-  const [result] = await runHealthCheck([cur]);
+  // track=false：单条检查不占用、不重置批量检查的进度
+  const [result] = await runHealthCheck([cur], { track: false });
   sendJson(res, 200, { bookmark: result });
 }
 

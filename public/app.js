@@ -49,6 +49,7 @@ function debounce(fn, ms) {
 const state = {
   cats: [],                 // 分类列表
   bms: [],                  // 当前书签列表
+  total: 0,                 // 书签总数（来自 /api/stats，用于「未分类」计数）
   filter: {
     categoryId: null,       // null=全部, 'none'=未分类, 数字=分类 id
     health: null,           // null|'ok'|'dead'|'error'|'unknown'
@@ -134,9 +135,6 @@ function renderSidebar() {
       <span class="cat-count">${it.count}</span>${actions}
     </div>`;
   }).join('');
-
-  const uncatRow = state.cats.find((c) => c.id === null); // 占位，无实际用途
-  void uncatRow;
 }
 
 /* ---------- 渲染：工具栏（结果数 + 健康筛选 chips） ---------- */
