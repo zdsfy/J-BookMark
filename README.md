@@ -117,6 +117,19 @@ API 对局域网开放，但**跨源数据访问默认是关闭的**（只允许
 
 为防 SSRF（恶意书签让 NAS 去扫内网端口），健康检查会**跳过内网/保留地址**（`127.*`、`10.*`、`172.16-31.*`、`192.168.*`、`169.254.*`、`0.0.0.0`、`localhost`、IPv6 字面量），这些书签状态保持/标记为「未检测」。内网书签本身仍可正常保存和打开，只是不做自动探测。
 
+### 站点图标（favicon）提取
+
+网页前端不再依赖 Google 的 favicon 服务，改由服务端按需提取并本地缓存（`data/favicons/<书签id>.<扩展名>`）：
+
+- 提取策略：先尝试 `<书签协议>://<host>/favicon.ico`，失败则抓首页解析 `<link rel="icon">`（含 apple-touch-icon）；
+- 首次请求某书签图标时触发抓取，之后走本地缓存（响应 `Cache-Control: private, max-age=86400`）；
+- SSRF 防护：内网/保留地址不提取（与健康检查同一规则）；跟随重定向后的最终地址若为内网则拒绝；
+- 图标上限 1.5MB、首页上限 512KB，仅接受常见图片类型；
+- 编辑书签的 URL 或删除书签时自动清理对应缓存，新 URL 的图标按需重新提取；
+- 提取失败的站点有 6 小时降级缓存，不会反复请求死站。前端在无图标时显示首字母占位。
+
+> 备份时 `data/` 目录下的 `favicons/` 子目录一并备份即可。
+
 ## REST API 文档
 
 统一前缀 `/api`，返回 JSON；错误统一为 `{"error": "..."}`。
@@ -137,6 +150,7 @@ API 对局域网开放，但**跨源数据访问默认是关闭的**（只允许
 | GET | `/api/bookmarks` | 列表；支持 `category_id`（数字或 `none`）、`health`（ok/dead/error/unknown）、`q`（全文搜索）、`tag`、`sort`（clicks/recent/created/alpha） |
 | POST | `/api/bookmarks` | 新建 `{title, url, category_id?, notes?, tags?}` |
 | GET | `/api/bookmarks/:id` | 详情 |
+| GET | `/api/bookmarks/:id/favicon` | 站点图标（按需提取并缓存，见下文） |
 | PUT | `/api/bookmarks/:id` | 更新（字段可部分传入） |
 | DELETE | `/api/bookmarks/:id` | 删除 |
 | POST | `/api/bookmarks/:id/visit` | 访问计数 +1（插件/前端打开链接时调用） |

@@ -155,10 +155,9 @@ function renderToolbar() {
 
 function faviconHtml(bm) {
   const letter = (bm.title || '?').trim().charAt(0).toUpperCase();
-  const host = hostOf(bm.url);
+  // 图标由服务端按需从站点提取并缓存（data/favicons/），不再依赖 Google 服务
   return `<span class="card-favicon" aria-hidden="true">${escapeHtml(letter)}
-    <img src="https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64" alt=""
-         loading="lazy" onerror="this.remove()">
+    <img src="/api/bookmarks/${bm.id}/favicon" alt="" loading="lazy" onerror="this.remove()">
   </span>`;
 }
 

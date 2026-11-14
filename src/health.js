@@ -31,7 +31,7 @@ export function getHealthJob() {
  * 让 NAS 去扫内网端口，再通过 health_code 回显结果）。
  * 只做 IP 字面量与 localhost 判断；域名解析到内网的情况不在本层处理。
  */
-function isPrivateTarget(u) {
+export function isPrivateTarget(u) {
   try {
     const hostname = new URL(u).hostname;
     if (!hostname) return true;

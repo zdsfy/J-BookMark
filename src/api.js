@@ -5,6 +5,7 @@
  */
 import { getDb } from './db.js';
 import { runHealthCheck, getHealthJob } from './health.js';
+import { getFavicon, invalidateFavicon } from './favicon.js';
 
 /* ---------- 工具函数 ---------- */
 
@@ -267,6 +268,21 @@ function getBookmark(_req, res, match) {
   sendJson(res, 200, { bookmark: row });
 }
 
+/** 站点图标：优先本地缓存，未缓存则按需从站点抓取（结果缓存到 data/favicons/） */
+async function getBookmarkFavicon(_req, res, match) {
+  const id = parseId(match);
+  const result = await getFavicon(id);
+  if (result.status !== 200) {
+    return sendError(res, 404, result.error || '图标不可用');
+  }
+  res.writeHead(200, {
+    'Content-Type': result.type,
+    'Cache-Control': 'private, max-age=86400',
+    'Content-Length': result.buf.length,
+  });
+  res.end(result.buf);
+}
+
 async function updateBookmark(req, res, match) {
   const id = parseId(match);
   const body = await readBody(req, res);
@@ -290,6 +306,8 @@ async function updateBookmark(req, res, match) {
     const cat = db.prepare('SELECT id FROM categories WHERE id = ?').get(Number(next.category_id));
     if (!cat) return sendError(res, 400, '分类不存在');
   }
+  // URL 变化时清理旧 favicon 缓存（新 URL 的图标按需重新提取）
+  if (next.url !== cur.url) invalidateFavicon(id);
 
   db.prepare(`
     UPDATE bookmarks SET category_id = ?, title = ?, url = ?, notes = ?, tags = ?, favicon = ?,
@@ -311,6 +329,7 @@ function deleteBookmark(_req, res, match) {
   const db = getDb();
   const info = db.prepare('DELETE FROM bookmarks WHERE id = ?').run(id);
   if (!info.changes) return sendError(res, 404, '书签不存在');
+  invalidateFavicon(id); // 清理缓存图标文件
   sendJson(res, 200, { deleted: true });
 }
 
@@ -412,6 +431,7 @@ const routes = [
   ['GET', /^\/api\/bookmarks$/, listBookmarks],
   ['POST', /^\/api\/bookmarks$/, createBookmark],
   ['GET', /^\/api\/bookmarks\/(\d+)$/, getBookmark],
+  ['GET', /^\/api\/bookmarks\/(\d+)\/favicon$/, getBookmarkFavicon],
   ['PUT', /^\/api\/bookmarks\/(\d+)$/, updateBookmark],
   ['DELETE', /^\/api\/bookmarks\/(\d+)$/, deleteBookmark],
   ['POST', /^\/api\/bookmarks\/(\d+)\/visit$/, visitBookmark],
