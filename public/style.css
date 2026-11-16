@@ -238,13 +238,19 @@ html[data-theme="dark"] #btn-theme .icon-moon { display: block; }
 .card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--ink-3) 40%, var(--border)); transform: translateY(-1px); }
 .card-main { display: flex; gap: 11px; align-items: flex-start; text-decoration: none; color: inherit; }
 .card-favicon {
-  width: 38px; height: 38px; flex-shrink: 0;
+  width: 38px; height: 38px; flex-shrink: 0; position: relative;
   display: flex; align-items: center; justify-content: center;
   border-radius: 9px; background: var(--unknown-soft);
   font-size: 16px; font-weight: 700; color: var(--accent-strong);
   overflow: hidden;
 }
-.card-favicon img { width: 22px; height: 22px; }
+/* 图标绝对定位于字母之上；图标加载成功（.has-icon）后隐藏字母 */
+.card-favicon img {
+  position: absolute; top: 50%; left: 50%;
+  width: 22px; height: 22px;
+  transform: translate(-50%, -50%);
+}
+.card-favicon.has-icon .favicon-letter { display: none; }
 .card-title {
   font-size: 14.5px; font-weight: 600; line-height: 1.4;
   color: var(--ink);

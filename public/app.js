@@ -155,9 +155,12 @@ function renderToolbar() {
 
 function faviconHtml(bm) {
   const letter = (bm.title || '?').trim().charAt(0).toUpperCase();
-  // 图标由服务端按需从站点提取并缓存（data/favicons/），不再依赖 Google 服务
-  return `<span class="card-favicon" aria-hidden="true">${escapeHtml(letter)}
-    <img src="/api/bookmarks/${bm.id}/favicon" alt="" loading="lazy" onerror="this.remove()">
+  // 图标加载成功时隐藏首字母占位；加载失败（站点无图标）时只剩下字母
+  return `<span class="card-favicon" aria-hidden="true">
+    <span class="favicon-letter">${escapeHtml(letter)}</span>
+    <img src="/api/bookmarks/${bm.id}/favicon" alt="" loading="lazy"
+         onload="this.closest('.card-favicon').classList.add('has-icon')"
+         onerror="this.remove()">
   </span>`;
 }
 
