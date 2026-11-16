@@ -5,7 +5,7 @@
 > 内置 REST API，为浏览器插件预留接口。
 
 ![Node Version](https://img.shields.io/badge/Node.js-%3E%3D22.5-339933?logo=nodedotjs&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-blue)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue)
 ![Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-NAS%20%7C%20Linux-yellow)
 
@@ -264,4 +264,4 @@ J-BookMark/
 
 ## License
 
-[MIT](LICENSE)
+[Apache-2.0](LICENSE)
