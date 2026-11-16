@@ -1,9 +1,15 @@
 {
   "name": "bookmark-nas",
   "version": "0.1.0",
-  "description": "个人书签管理工具（NAS 网页版），内置 REST API 供后续浏览器插件复用",
+  "description": "个人书签管理工具（NAS 网页版），零依赖 Node.js + 内置 SQLite，内置 REST API 供后续浏览器插件复用",
   "type": "module",
   "main": "server.js",
+  "author": "zdsfy",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zdsfy/J-BookMark.git"
+  },
+  "license": "MIT",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
@@ -11,5 +17,12 @@
   "engines": {
     "node": ">=22.5.0"
   },
-  "license": "MIT"
+  "keywords": [
+    "bookmark",
+    "nas",
+    "sqlite",
+    "rest-api",
+    "favorites",
+    "self-hosted"
+  ]
 }
