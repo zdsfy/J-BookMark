@@ -203,14 +203,60 @@ curl 'http://192.168.1.100:9989/api/bookmarks?q=%E6%96%87%E6%A1%A3'
 | GET | `/api/stats` | 总数、今日访问、健康分布、7 天趋势、Top5 |
 | GET | `/api/health` | 服务存活探测（供监控使用） |
 
-## 浏览器插件规划
+## Chrome 浏览器插件
 
-网页版 API 已按「插件可复用」设计：
+仓库内置完整的 Chrome / Edge 扩展（MV3），复用本服务 REST API，实现一键收藏、搜索、快速打开。
 
-- Chrome / Edge 扩展的 Service Worker 通过 `fetch` 调用本服务 REST API
-- 插件保存当前标签页：`POST /api/bookmarks`（带 `category_id`、`tags`）
-- 用户点击书签打开时：`POST /api/bookmarks/:id/visit` 记录访问
-- 跨源调用需在插件设置里配置 NAS 地址与 API Token（`BM_TOKEN`）或 `BM_CORS_ORIGINS` 白名单
+<details>
+<summary><b>📦 安装（开发者模式加载）</b></summary>
+
+1. 克隆仓库后，浏览器打开 `chrome://extensions`（Edge 为 `edge://extensions`）
+2. 右上角开启 **开发者模式**
+3. 点击 **加载已解压的扩展程序**，选择仓库下的 `extension/` 目录
+4. 图标出现在工具栏后，点击 ⚙ 打开设置
+
+> 扩展为纯本地代码，无远程加载、无统计上报。
+</details>
+
+<details>
+<summary><b>⚙ 配置</b></summary>
+
+打开扩展设置页，填写：
+
+| 字段 | 说明 |
+|------|------|
+| 服务地址 | 你的 bookmark-nas 地址，如 `http://nas.local:9989`（无需 `/api` 后缀） |
+| API Token | 可选。仅当服务端设置了 `BM_TOKEN` 时需要，留空则不发送 |
+
+点「测试连接」可验证地址与 Token 是否正确。
+</details>
+
+<details>
+<summary><b>🚀 使用</b></summary>
+
+- **保存当前页**：点击工具栏图标 → 弹窗自动填入当前页标题 → 选分类、填标签 → 保存
+- **保存链接**：网页上右键链接 →「保存链接到书签」；右键页面 →「保存此页面到书签」
+- **搜索/快速打开**：弹窗顶部搜索框实时搜索，点击条目在新标签页打开并自动计数
+- **快捷键**：`Ctrl+Shift+B` 打开弹窗（可在 `chrome://extensions/shortcuts` 修改）
+</details>
+
+> **服务端跨源说明**：扩展请求自带 `Origin: chrome-extension://<id>`，服务端已将
+> 该协议来源与「无 Origin 的 curl」同级放行（浏览器 Origin 无法被网页伪造）。
+> 因此**无需配置 Token 或白名单**即可使用；若服务端开启了 `BM_TOKEN`，扩展不带
+> Token 也能访问（协议来源受信任），恶意网页来源则仍被 401 拦截。
+
+### 扩展文件结构
+
+```
+extension/
+├── manifest.json     # MV3 清单（权限、弹窗、后台、快捷键）
+├── background.js     # Service Worker：右键菜单保存、消息处理
+├── common.js         # 共享 API 客户端（配置读取、请求封装、Token）
+├── popup.html/js     # 弹窗：保存当前页、搜索、快速打开
+├── options.html/js   # 设置页：服务地址、Token、连接测试
+├── gen-icons.mjs     # 图标生成脚本（Node 零依赖，重跑可再生成）
+└── icons/            # 16/32/48/128 图标（由 gen-icons.mjs 生成）
+```
 
 ## 隐私说明
 
@@ -246,6 +292,7 @@ J-BookMark/
 │   ├── index.html
 │   ├── style.css
 │   └── app.js
+├── extension/         # Chrome / Edge 浏览器插件（MV3，见上方章节）
 ├── data/              # 运行时生成（bookmark.db、favicons/），不入 git
 ├── package.json
 └── .gitignore

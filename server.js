@@ -92,6 +92,11 @@ function isCallerAllowed(req) {
   if (!o) return true; // 无 Origin 的客户端（curl 等）
   if (isSameOrigin(o, req)) return true; // 本站网页
   if (CORS_ORIGINS.includes(req.headers.origin)) return true; // 显式白名单
+  // Chrome 扩展（MV3）请求自带 Origin: chrome-extension://<id>，既不同源也不在
+  // 白名单。该 Origin 只能由浏览器真实扩展产生、网页无法伪造，风险不高于「无
+  // Origin 的 curl」，故与无 Origin 客户端同级放行（若服务端配置了 Token，扩展
+  // 仍可携带 Token 通过上面的白名单路径，二者均可）。
+  if (o.protocol === 'chrome-extension:') return true;
   return API_TOKEN ? tokenMatches(req) : false; // 其它跨源：必须带合法 Token
 }
 
